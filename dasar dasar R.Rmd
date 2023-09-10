@@ -1,0 +1,148 @@
+---
+title: "R UNTUK PEMULA"
+output: 
+  html_notebook:
+    toc: TRUE 
+    toc_depth: 3
+---
+#Dasar dasar pada R
+```{r}
+#instal dan menhakabjab package serti melihat oackage apa saja yang sudah kita instal
+install.packages("nama package", "NAMA PACKAGE") #menggunakan tanda oetik
+library("nama package") #tanpa tnda oetik
+installed.packages()[,1]
+```
+
+```{r}
+#membuka file yang akan kita kerjakan
+Tess <- read.csv("D:/TSA/DADA.csv", #file yang bisa di buka hanya csv ms dos
+                 header = T,
+                 sep = ","
+                 )
+```
+##melihat struktur data
+```{r}
+View(Tess) #untuk melihat tabel
+dim(Tess) #meilhat dimensi ada berapa baris dan kolom, terlihat ada 4 kolom dan 11487baris
+nrow(Tess) #melihat baris
+ncol(Tess) #melihat colom
+str(Tess) #untuk melihat type data
+glimpse(Tess) #sama dengan str cuman lebih lengkap
+head(Tess, 20) #melha 20 baris dari atas
+tail(Tess, 10) #melihat 10 baris dari bawah
+View(head(Tess, 10)) #melihat tabel data dari 10 baris di atas
+```
+##memanggil data
+```{r}
+Tess$BULAN #mengeluarkan data di file bulan
+Tess[,1] #menampilkan data di baris 1
+Tess[900,] #menampilakan data di kolomke 1
+```
+
+
+#Eksplorasi data / membaca data
+```{r}
+library(dplyr)
+glimpse(Tess) #melihat struktur data
+library(skimr)
+skim(Tess) #melihat ringkasan data dengan lebih lengkap
+mean(Tess$Tinggi.Air) #rata-rata
+sd(Tess$Tinggi.Air) #standar deviaasi
+median(Tess$Tinggi.Air) #menghitung data tengah / median
+quantile(Tess$Tinggi.Air, 0.25) #q1
+quantile(Tess$Tinggi.Air, 0.75) #q2
+max(Tess$Tinggi.Air)
+min(Tess$Tinggi.Air)
+summary(Tess) #rincian data
+library(DataExplorer)
+plot_intro(Tess) #meliht ukuran data
+plot_str(Tess)
+plot_correlation(Tess)
+plot_histogram(Tess$Tinggi.Air)
+```
+```{r}
+install.packages("dlookr")
+library(dlookr)
+diagnose(Tess) #punya dlookr
+diagnose_category(Tess) #punya dlookr
+diagnose_category(Tess) #punya dlookr
+diagnose_outlier(Tess) #punya dlookr
+plot_outlier(Tess) #punya dlookr
+describe(Tess) #punya dlookr
+
+```
+
+```{r}
+##explorasi pada daya
+#data yang di gunakan adalah data yang berisi nilai 3 bulan jika hanya ingin mengerjakan data yang
+#hanya bulan tertentu maka
+Januari <- subset(Tess, BULAN == "JANUARI")
+View(head(Januari, 10))
+plot_histogram(Januari$Tinggi.Air)
+plot_histogram(Januari)
+plot_outlier(Januari)
+```
+```{r}
+Februri <- subset(Tess, BULAN == "FEBRUARI")
+head(Februri)
+```
+
+
+```{r}
+##rata-rata berdasarkan var tertentu
+#dengan menggunakn dplyr
+mean_perbulan <- Tess %>% #nama datanya apa
+  group_by(BULAN) %>% #mau di group berdsarkan apa? dalam hal ini adalah bulan
+  summarise(Rata_rata = mean(Tinggi.Air)) #naama headnya apa saja dan parameternya bisa count, mean dalam hal ini mean bisa juga max dan data lainnya,
+
+mean_perbulan
+```
+
+
+```{r}
+#untk membuatnya menjdi dalam hystogram maka di perlukan package lain lagi
+install.packages("ggplot2")
+library(ggplot2)
+```
+
+###Membuat Grafik
+```{r}
+ggplot(mean_perbulan, aes(x = Rata_rata)) + 
+  geom_histogram(binwidth = 2, fill = "lightgreen", col = "red")+
+  labs(
+    title = "AVERAGE LAST 3 MONTH",
+    X = "BULAN",
+    Y = "NILAI RATA RATA"
+  )
+```
+
+
+```{r}
+table(Tess$Tinggi.Air) 
+```
+```{r}
+#membuat plot histogram
+
+par(mfrow = c (2, 3)) #untuk menampilkan berapa table, di samping artinya 2x3 table yang ingin di tampilkan.
+
+hist(Januari$Tinggi.Air,
+     main = "DATA AIR PADA BULAN JANUARI",
+     ylab = "ketinggian",
+     xlab = "perjam",
+     col = "blue"
+     )
+hist(Februri$Tinggi.Air,
+     main = "DATA AIR PADA BULAN FEBRUARI",
+     ylab = "ketinggian",
+     xlab = "perjam",
+     col = "red"
+     )
+
+```
+```{r}
+
+```
+
+
+
+
