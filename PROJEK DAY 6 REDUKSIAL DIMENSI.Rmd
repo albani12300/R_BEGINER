@@ -1,0 +1,104 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+###MEREDUKSI DI MENSI DATA
+```{r}
+###paket yang harus di instal adalah sebagai berikut :
+library(ggplot2)
+install.packages("ggfortify")
+library(ggfortify)
+library(gridExtra)
+install.packages("carData")
+library(carData)
+install.packages("car")
+library(car)
+install.packages("factoextra")
+library(factoextra)
+library(corrplot)
+```
+```{r}
+###data yang di gunakan
+data("decathlon2")
+decathlon2.active <- decathlon2[1:23, 1:10] #mengmbul hanya 23 baris dn 10 kolom saja
+View(decathlon2)
+head(decathlon2.active)
+```
+```{r}
+summary(decathlon2.active)
+```
+```{r}
+#melihat histogram semua data decathlon 2
+par(mfrow = c(2, 5))
+hist1 <- hist(decathlon2.active$X100m, breaks=10, col = "gray", main = "100 metres", 
+     xlab = "seconds", ylab = "count")
+hist2 <- hist(decathlon2.active$Long.jump, breaks=10, col = "gray", main = "Long jump", 
+     xlab = "metres", ylab = "count")
+hist3 <- hist(decathlon2.active$Shot.put, breaks=10, col = "gray", main = "Shot put", 
+     xlab = "metres", ylab = "count")
+hist4 <- hist(decathlon2.active$High.jump, breaks=10, col = "gray", main = "High jump", 
+     xlab = "metres", ylab = "count")
+hist5 <- hist(decathlon2.active$X400m, breaks=10, col = "gray", main = "400 metres", 
+     xlab = "seconds", ylab = "count")
+hist6 <- hist(decathlon2.active$X110m.hurdle, breaks=10, col = "gray", main = "110m hurdle", 
+     xlab = "seconds", ylab = "count")
+hist7 <- hist(decathlon2.active$Discus, breaks=10, col = "gray", main = "Discus", 
+     xlab = "metres", ylab = "count")
+hist8 <- hist(decathlon2.active$Pole.vault, breaks=10, col = "gray", main = "Pole vault", 
+     xlab = "metres", ylab = "count")
+hist9 <- hist(decathlon2.active$Javeline, breaks=10, col = "gray", main = "Javeline", 
+     xlab = "metres", ylab = "count")
+hist10 <- hist(decathlon2.active$X1500m, breaks=10, col = "gray", main = "1500 metres", 
+     xlab = "seconds", ylab = "count")
+```
+```{r}
+###Perhitungan PCA
+res.pca <- prcomp(decathlon2.active, scale = TRUE)
+print(res.pca)
+summary(res.pca)
+eig.val<-get_eigenvalue(res.pca)
+eig.val
+```
+```{r}
+#visualisasi
+fviz_eig(res.pca, col.var ="blue")
+```
+```{r}
+var <- get_pca_var(res.pca)
+var
+head(var$cos2)
+corrplot(var$cos2, is.corr=FALSE)
+```
+```{r}
+fviz_cos2(res.pca, choice = "var", axes = 1:2)
+```
+```{r}
+fviz_pca_var(res.pca,
+             col.var = "cos2", # Color by the quality of representation
+             gradient.cols = c("darkorchid4", "gold", "darkorange"),
+             repel = TRUE
+             )
+```
+```{r}
+a<-fviz_contrib(res.pca, choice = "var", axes = 1)
+# Contributions of variables to PC2
+b<-fviz_contrib(res.pca, choice = "var", axes = 2)
+grid.arrange(a,b, ncol=2, top='Contribution of the variables to the first two PCs')
+```
+```{r}
+fviz_contrib(res.pca, choice = "ind", axes = 1:2)
+```
+```{r}
+autoplot(res.pca, loadings=TRUE, loadings.colour='darkorchid4', loadings.label=TRUE, loadings.label.size=3)
+```
+```{r}
+kmeans<-eclust(decathlon2.active, k=4)
+```
+```{r}
+
+```
+
+
+
+
+
