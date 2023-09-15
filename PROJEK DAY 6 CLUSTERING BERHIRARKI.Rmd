@@ -1,0 +1,115 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#analisis Clustering / Teknik penggerombolan 
+##PENGAMBILAN DATA
+```{r}
+nasabah <- read.csv("D:/PROJEK/transaksi.csv",
+                    header = T,
+                    sep = ,
+                    )
+```
+```{r}
+nasabah20 <- nasabah[1:20, ] #artinya adalah mengambil baris 1-20, dan semua kolom, kalau ada 1:20, 10 maka yang di amabil adalah 10 colom
+nasabah21 <- nasabah[1:19, 9:10] #artinya adalah mengambil 1-19 baris dan colomke 9-10 dri data nasabah
+View(nasabah21)
+View(nasabah20)
+dim(nasabah20)
+```
+##Cleaning data
+```{r}
+#melihat statistik deskriptif data
+summary(nasabah20)
+```
+```{r}
+#melihat mising value
+anyNA(nasabah20) #data menunjukan tidak ada missing value artinya data bisa di analisis lebih lanjut
+```
+```{r}
+#melihat data duplicate, percuma kita clustering kalau data masih ada yang duplicate
+duplicated(nasabah20)
+#jika ada data yang duplicate maka gunakan fungsi unique
+nasabah20_cleaning <- unique(nasabah20, by.row = T)
+View(nasabah20_cleaning)
+```
+```{r}
+#Contoh dalam bentuk lain yang ada duplictenya
+data_frame_contoh <- data.frame(
+  Nama = c("Alice", "Bob", "Charlie", "Alice"),
+  Usia = c(25, 30, 22, 25)
+)
+
+duplicated(data_frame_contoh)
+data_frame_contoh_nonduplicte <- unique(data_frame_contoh, by.row = T)
+data_frame_contoh_nonduplicte
+```
+```{r}
+#melakukan uji asumsi multikolinieritas
+multikolinieritas <- cor(nasabah20)
+multikolinieritas
+```
+##standarisasi
+```{r}
+#melakukan standarisaasi data
+#kita bisa melakukan z-score standarization menggunakan fungsi scale(). Hasil standarisasi data akan kita simpan dalam objek us_z.
+scale_nasabah20 <- scale(nasabah20_cleaning)
+scale_nasabah20
+```
+```{r}
+#Mengukur jarak data (Dis)similarity Data
+      ##Perhitungan (dis)similarity data adalah proses mengukur sejauh mana dua atau lebih titik data dalam         sebuah dataset mirip atau berbeda satu sama lain. Tujuan dari perhitungan similarity (kesamaan)             adalah untuk menemukan kesamaan antara data atau elemen-elemen dataset, sedangkan perhitungan               dissimilarity (perbedaan) mengukur sejauh mana elemen-elemen tersebut berbeda.
+dist_nasabah20 <- dist(scale_nasabah20, method = "manhattan")
+dist_nasabah20
+```
+##Modeling Clustering
+```{r}
+"Setelah persiapan data selesai, maka saatnya membuat clustering. Pembuatan clustering yang akan dicoba adalah 5 metode AGNES clustering yang telah dijelaskan pada bab “Linkage Method” sebelumnya. Hal ini bertujuan untuk membandingkan rupa dendrogram yang dihasilkan oleh tiap metode.
+
+Pembuatan AGNES clustering pada R dapat menggunakan fungsi hclust(). Fungsi ini akan meminta 2 argumen untuk dimasukkan yaitu:
+
+    d: objek distance / distance matrix
+    method: linkage method yang digunakan, dengan pilihannya diantaranya:
+        “ward.D2”
+        “single”
+        “complete”
+        “average”
+        “centroid”
+
+Selain linkage method yang kita bahas di atas, terdapat juga linkage method yang lain. Dokumentasi lebih lengkap mengenai linkage method yang disediakan hclust() ada disini, dan bacaan lebih lanjut terkait penjelasan linkage method tersebut dapat dilihat disini."
+```
+
+```{r}
+clustering_nasabah20_Complete <- hclust(d = dist_nasabah20, method = "complete")
+clustering_nasabah20_single <- hclust(d = dist_nasabah20, method = "single")
+clustering_nasabah20_ward.D2 <- hclust(d = dist_nasabah20, method = "ward.D2")
+clustering_nasabah20_average <- hclust(d = dist_nasabah20, method = "average")
+clustering_nasabah20_centroid <- hclust(d = dist_nasabah20, method = "centroid")
+```
+```{r}
+plot(clustering_nasabah20_ward.D2)
+```
+
+
+##Diagram
+```{r}
+plot(
+  clustering_nasabah20_Complete,
+  clustering_nasabah20_single,
+  clustering_nasabah20_ward.D2,
+  clustering_nasabah20_average,
+  clustering_nasabah20_centroid
+)
+```
+```{r}
+plot(
+  clustering_nasabah20_Complete
+  )
+```
+
+
+
+
+
+
+
