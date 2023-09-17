@@ -1,0 +1,66 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+#CLUSTERING NON HIRARKI DENGAN K-MEANS
+```{r}
+library(readr)
+library(readxl)
+library(magrittr)
+library(skimr)
+library(ggplot2)
+library(tidyverse)
+library(factoextra)
+library(DataExplorer)
+library(gridExtra)
+library(cluster)
+```
+#TARIK DATA
+```{r}
+Data_latihan <- read.csv("D:PROJEK/customer_segmentation.csv",
+                         header = T,
+                         sep = ","
+                         )
+```
+```{r}
+glimpse(cluster_non_hirarki) #data merupakan 100baris dari data_latihan
+```
+```{r}
+datacluster <- cluster_non_hirarki[,2:12]
+head(datacluster)
+```
+```{r}
+#explorasi data
+skim(datacluster)
+```
+```{r}
+#Normalisasi data
+data_cluster_n <- scale(datacluster)
+data.table::data.table(
+  data_cluster_n, caption = "Data Hasil Standardisasi"
+  )
+```
+
+```{r}
+#clustering
+set.seed(123)
+kmeans_clustering <- kmeans(x = data_cluster_n, centers = 4, nstart = 25)
+kmeans_clustering
+```
+```{r}
+cluster_non_hirarki %>%
+  mutate(klaster = kmeans_clustering$cluster)%>%
+  select(MemberID, klaster)
+```
+```{r}
+Cluster_plot <- eclust(datacluster,stand = TRUE,FUNcluster = "kmeans",k=4,graph = T)
+```
+```{r}
+Cluster_plot$cluster
+```
+```{r}
+table(Cluster_plot$cluster)
+```
+
+
+
