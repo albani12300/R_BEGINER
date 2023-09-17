@@ -1,0 +1,118 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+install.packages("readxl")
+install.packages("magrittr")
+install.packages("knitr")
+install.packages("cluster")
+library(readxl)
+library(magrittr)
+library(skimr)
+library(ggplot2)
+library(tidyverse)
+library(factoextra)
+library(DataExplorer)
+library(gridExtra)
+library(cluster)
+```
+
+```{r}
+Data_latihan <- read.csv("D:PROJEK/customer_segmentation.csv",
+                         header = T,
+                         sep = ","
+                         )
+cluster_non_hirarki <- Data_latihan[1:100, ]
+cluster_hirarki <- Data_latihan[1:30, ]
+```
+
+```{r}
+glimpse(cluster_hirarki)
+glimpse(cluster_non_hirarki)
+```
+#Cluster hirarki
+
+```{r}
+#ambil data yang di cleaning.
+df_cluster <- cluster_hirarki[,c("frequency","monetary","avg_monetary")]
+view(df_cluster)
+```
+```{r}
+#Standarisasi data
+sddf_cluster <- scale(df_cluster)
+```
+```{r}
+#mengukur jarak data
+dist_cluster <- dist(sddf_cluster)
+view(dist_cluster)
+```
+
+```{r}
+#menentukan jumlah cluster optimum, 
+"Fungsi fviz_nbclust digunakan untuk menentukan jumlah cluster optimum, dimana argument yang diisikan adalah data hasil standarisasi, hirarki cluster dengan menggunakan metode Silhoutte untuk memvalidasi."
+dc1 <- data.matrix(dist_cluster)
+```
+```{r}
+fviz_nbclust(dc1, hcut, method = "silhouette")
+```
+
+```{r}
+#modeling cluster
+"Setelah persiapan data selesai, maka saatnya membuat clustering. Pembuatan clustering yang akan dicoba adalah 5 metode AGNES clustering yang telah dijelaskan pada bab “Linkage Method” sebelumnya. Hal ini bertujuan untuk membandingkan rupa dendrogram yang dihasilkan oleh tiap metode.
+
+Pembuatan AGNES clustering pada R dapat menggunakan fungsi hclust(). Fungsi ini akan meminta 2 argumen untuk dimasukkan yaitu:
+
+    d: objek distance / distance matrix
+    method: linkage method yang digunakan, dengan pilihannya diantaranya:
+        “ward.D2”
+        “single”
+        “complete”
+        “average”
+        “centroid”
+
+Selain linkage method yang kita bahas di atas, terdapat juga linkage method yang lain. Dokumentasi lebih lengkap mengenai linkage method yang disediakan hclust() ada disini, dan bacaan lebih lanjut terkait penjelasan linkage method tersebut dapat dilihat disini."
+
+#sintax
+clustering_metode_Complete <- hclust(d = dist_cluster, method = "complete")
+clustering_metode_single <- hclust(d = dist_cluster, method = "single")
+clustering_metode_ward.D2 <- hclust(d = dist_cluster, method = "ward.D2")
+clustering_metode_average <- hclust(d = dist_cluster, method = "average")
+clustering_metode_centroid <- hclust(d = dist_cluster, method = "centroid")
+```
+```{r}
+#plot dendogram
+par(mfrow=c(1,7),
+plot(clustering_metode_average),
+plot(clustering_metode_centroid),
+plot(clustering_metode_Complete),
+plot(clustering_metode_single),
+plot(clustering_metode_ward.D2),
+)
+```
+```{r}
+#bisa juga dengan cara:
+clus_hier <- eclust(dist_cluster, FUNcluster = "hclust", k = 2, hc_method = "centroid", graph= TRUE) 
+dend <-fviz_dend(clus_hier, rect = TRUE, show_labels = TRUE, cex = 0.5)
+idclus = clus_hier$cluster
+idobs = as.numeric(names(idclus))
+print(dend)
+```
+```{r}
+#mengambil nama bagian bagian cluster
+idclus <- clus_hier$cluster
+C1 <- c() ; C2 <- c() ;
+for (i in 1:30) {
+  if (idclus [i] == 1){C1 = c(C1,i)}
+    else if (idclus[i]==2){C2 = c(C2,i)}
+}
+```
+```{r}
+clustering <- list(Cluster1 = C1, Cluster2 = C2)
+clustering$Cluster1
+clustering$Cluster2
+```
+
+
+
