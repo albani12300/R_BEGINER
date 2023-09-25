@@ -1,0 +1,516 @@
+---
+title: "Regresi Logistik"
+output: 
+  html_notebook:
+    toc: yes
+    toc_depth: 4
+    toc_float: true
+    theme: flatly
+    highlight: zenburn
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(corrplot)
+library(lmtest)
+library(car)
+library(MASS)
+library(dplyr)
+library(ggplot2)
+
+library(MLmetrics)
+library(ROCR)
+library(VGAM)
+# library(tidyverse)
+```
+
+
+## Persiapan data
+
+```{r}
+germancredit <- read.csv(file="https://github.com/alfanugraha/tsa-handson/raw/master/german_credit.csv", 
+                header = T, 
+                sep = ",")
+str(germancredit)
+```
+
+Tentang gugus data German Credit. 
+
+* Account Balance: No account (1), None (No balance) (2), Some Balance (3)
+* Payment Status: Some Problems (1), Paid Up (2), No Problems (in this bank) (3)
+* Savings/Stock Value: None, Below 100 DM, [100, 1000] DM, Above 1000 DM
+* Employment Length: Below 1 year (including unemployed), [1, 4], [4, 7], Above 7
+* Sex/Marital Status: Male Divorced/Single, Male Married/Widowed, Female
+* No of Credits at this bank: 1, More than 1
+* Guarantor: None, Yes
+* Concurrent Credits: Other Banks or Dept Stores, None
+* ForeignWorker variable may be dropped from the study
+* Purpose of Credit: New car, Used car, Home Related, Other
+
+
+```{r}
+germancredit
+```
+
+
+```{r}
+skimr::skim(germancredit)
+```
+
+
+Konversi beberapa data numerik sebagai data kategorik
+
+```{r}
+germancredit$creditability <- as.factor(germancredit$creditability)
+germancredit$account_balance <- as.factor(germancredit$account_balance)
+germancredit$payment_status <- as.factor(germancredit$payment_status)
+germancredit$stocks <- as.factor(germancredit$stocks)
+germancredit$length_employment <- as.factor(germancredit$length_employment)
+germancredit$sex_marital_status <- as.factor(germancredit$sex_marital_status)
+germancredit$no_credits <- as.factor(germancredit$no_credits)
+germancredit$foreign_worker <- as.factor(germancredit$foreign_worker)
+germancredit$purpose <- as.factor(germancredit$purpose)
+```
+
+### Statistik deskriptif
+
+```{r}
+summary(germancredit)
+```
+
+```{r}
+prop.table(table(germancredit$creditability))
+```
+
+Data tersebut memiliki 30% pemohon kredit dengan kategori buruk, 70% sisanya dengan kategori baik
+
+```{r}
+library(DataExplorer)
+plot_density(germancredit)
+```
+
+```{r}
+plot_bar(germancredit)
+```
+
+### Boxplot peubah numerik
+
+
+```{r}
+ggplot(germancredit, aes(x=creditability, y=credit_amount, fill=creditability)) +
+  geom_boxplot()
+```
+
+### Grafik batang peubah kategorik
+
+```{r}
+ggplot(germancredit, aes(account_balance, after_stat(count))) +
+  geom_bar(aes(fill=creditability), position = "dodge")
+```
+
+### Partisi/splitting data 
+
+```{r}
+# generate indeks data
+indeks <- sample(1:nrow(germancredit), size = 0.7 * nrow(germancredit))
+
+# partisi 70%
+train70 <- germancredit[indeks, ] # berisi 70%
+test30 <- germancredit[-indeks, ] # berisi 30%
+```
+
+
+## Regresi Logistik Biner
+
+Sebagai pengantar pada regresi klasik, sisaan $\epsilon$ diasumsikan menyebar normal, yang berarti Y juga menyebar normal. Namun pada kasus tertentu Y dapat berupa kategorik, misalnya kasus biner.
+
+Makna garis lurus jika digunakan pada kasus biner bentuk pola prediksi Y menjadi jauh lebih besar dari 1 (positif), atau bisa juga menjadi sangat negatif sehingga dianggap tidak sesuai dengan hasil sebenarnya.
+
+Odds adalah rasio peluang sukses dibagi peluang gagal, dimana peluang sukses > peluang gagal. Nilai odd disebut juga nilai logit
+
+Logit adalah nilai log dari odds yang sama dengan $\alpha + \beta X$. 
+
+Pada regresi linear jika nilai $X$ naik satu satuan maka $\beta$ meningkat satu satuan. Pada logit jika nilai $X$ naik satu satuan maka odds meningkat $e^{\beta}$ satuan. Merasiokan odd atau odds ratio sama saja dengan nilai $e^{\beta}$.
+
+Jika odd ratio bernilai 2, maknanya bahwa odds pada saat $X=x+1$ sama dengan 2 kali dari odds pada saat $X=x$. Kesimpulannya adalah peluang sukses terjadi 2 kali dari kejadian peluang gagal.
+
+### Pemodelan
+
+```{r}
+reglog <- glm(creditability ~ ., family = binomial, data=train70)
+summary(reglog)
+```
+
+```{r}
+reglog2 <- glm(creditability ~ account_balance + credit_amount + instalment_percent + stocks + purpose, 
+              family = binomial, 
+              data=train70)
+summary(reglog2)
+```
+
+### Seleksi fitur dengan stepwise
+
+```{r}
+reglog_step <- step(reglog)
+```
+
+```{r}
+summary(reglog_step)
+```
+
+### Final model
+
+```{r}
+reglog_final <- glm(formula = creditability ~ account_balance + payment_status + 
+    purpose + credit_amount + stocks + length_employment + instalment_percent + 
+    most_available_asset + concurrent_credits + type_apartment + telephone + foreign_worker, 
+    family = binomial, data = train70)
+summary(reglog_final)
+```
+
+### Kinerja Model
+
+
+Validasi model pada regresi logistik untuk peubah Y sudah dipastikan bahwa:
+
+- tidak menyebar normal
+- varian atau ragam peubah Y berubah dan tidak konstan
+- masalah multikolinearitas terkait pendugaan parameter, jika menduga dengan Least Square maka multikolinearitas tetap diperhatikan. Regresi gulud (ridge) dapat digunakan untuk kasus regresi klasik terhadap asumsi ini, tetapi tidak ada penanganan hal tersebut di regresi logistik.
+
+Regresi klasik menggunakan analisis ragam (ANOVA) untuk melihat kinerja model. Secara prinsip, Y pada regresi logistik hanya bersifat biner, ukuran yang dapat digunakan untuk menilai kebaikan model adalah dengan menggunakan uji likelihood ratio test atau chi-square. Cara lain dalam menilai kebaikan regresi logistik bisa dilihat dari kemampuan prediksinya dimana kemampuan memprediksi untuk kasus klasifikasi yang cocok dapat menggunakan tabel klasifikasi atau *confusion matrix*
+
+
+#### Confusion matrix
+
+```{r}
+# fitted.values
+fit70 <- fitted.values(reglog_final)
+pred_fit70 <- ifelse(fit70 >= 0.5, 1, 0)
+conftab <- table(train70$creditability, pred_fit70, dnn = c("Aktual", "Prediksi"))
+conftab
+```
+
+```{r}
+cat("Akurasi\t=", sum(diag(conftab)/sum(conftab)), "\n")
+```
+
+Cara lain dengan perhitungan manual untuk melihat performa model menggunakan data latih
+
+```{r}
+# predict
+pred_reglog70 <- predict(reglog_final, train70, type="response")
+y_pred <- ifelse(pred_reglog70 >= 0.5, 1, 0)
+y_act <- train70$creditability
+
+tbl_klas_reglog <- table(y_act, y_pred)
+tbl_klas_reglog
+```
+
+```{r}
+akurasi <- (tbl_klas_reglog[1,1] + tbl_klas_reglog[2,2]) / sum(tbl_klas_reglog) * 100
+sensitivitas <- tbl_klas_reglog[2,2] / sum(tbl_klas_reglog[2,]) * 100
+spesifisitas <- tbl_klas_reglog[1,1] / sum(tbl_klas_reglog[1,]) * 100 
+fprate <- tbl_klas_reglog[2,1] / (tbl_klas_reglog[2,1] + tbl_klas_reglog[1,1]) * 100
+AUC <- (100 + sensitivitas - fprate) / 2 
+
+performa <- data.frame(akurasi, sensitivitas, spesifisitas, AUC)
+performa
+```
+
+Berdasarkan output confusion matrix diatas dapat dilihat bahwa kemampuan prediksi dari model yang didapatkan untuk memprediksi kelas dengan pembayaran pinjaman kredit yang baik dapat diprediksi tepat sebanyak 435 dari total 490 sedangkan untuk kelas pembayaran kredit yang macet atau kurang baik diprediksi tepat sebanyak 109 dari total 210.
+
+### Prediksi Model
+
+#### Kurva ROC
+
+Menguji model dengan data uji
+
+```{r}
+# predict.glm
+pred_reglog_fin <- predict.glm(reglog_final, test30)
+pred_rocr <- prediction(pred_reglog_fin, test30$creditability)
+perf_rocr <- performance(pred_rocr, "tpr", "fpr")
+plot(perf_rocr)
+```
+
+
+## Regresi Logistik Multinomial
+
+Data yang digunakan pada model ini melihat bagaimana perilaku nasabah perbankan dalam memilih produk baru yang dimiliki suatu bank.
+
+Pilihan produk: 
+
+* direct debit
+* e-account
+* none
+* pension
+
+Terdapat `(4-1) = 3` model logit.
+
+
+```{r}
+multinom_train <- read.csv(file="https://github.com/alfanugraha/tsa-handson/raw/master/training_multinom.csv", 
+                header = T, 
+                sep = ",")
+multinom_test <- read.csv(file="https://github.com/alfanugraha/tsa-handson/raw/master/test_multinom.csv", 
+                header = T, 
+                sep = ",")
+head(multinom_train)
+```
+
+### Proporsi peubah respon
+
+```{r}
+prop.table(table(multinom_train$product))
+```
+
+### Pemodelan
+
+```{r}
+reglog_multinom <- vglm(product ~ ., family = multinomial(refLevel = "none"), data = multinom_train)
+summary(reglog_multinom)
+```
+
+### Selang kepercayaan berdasarkan pendekatan uji Wald
+
+```{r}
+zCrit <- qnorm(c(0.05/2, 1 - 0.05/2))
+ciCoef <- as.data.frame(t(apply(coef(summary(reglog_multinom)), 1, function(x) x["Estimate"] - zCrit*x["Std. Error"] )))
+names(ciCoef)<-c("Lower","Upper")
+head(ciCoef)
+```
+
+### Odds Ratios
+
+```{r}
+round(exp(coef(reglog_multinom)),4)
+```
+
+
+### Kinerja model
+
+Model dievaluasi dengan data latih untuk melihat kinerja model regresi logistik multinomial
+
+```{r}
+reglog_multinom_pred <- predict(reglog_multinom, type="response")
+
+# menambahkan kolom kelas aktual
+tbl_multinom <- data.frame(reglog_multinom_pred, multinom_train$product)
+head(tbl_multinom)
+```
+
+Perbandingan antara kelas aktual dan prediksi
+
+```{r}
+# menambah kolom kelas prediksi
+tbl_multinom$prediksi <- levels(as.factor(multinom_train$product))[max.col(reglog_multinom_pred)]
+head(tbl_multinom)
+```
+
+
+Ukuran kebaikan model dapat dilihat dengan confusion matrix, Deviance, Log-likelihood, AIC, McFadden, Cox & Snell and Nagelkerke Pseudo R-squared
+
+#### Confusion matrix
+
+Confusion matrix atau tabel klasifikasi dapat digunakan untuk melihat kebaikan model
+
+```{r}
+multinom_prop <- table(tbl_multinom$prediksi, tbl_multinom$multinom_train.product)
+multinom_prop
+```
+
+```{r}
+round(prop.table(multinom_prop, 1), 3)
+```
+
+
+```{r}
+mean(tbl_multinom$prediksi == multinom_train$product)
+```
+#### Deviance, Log-likelihood, AIC
+
+```{r}
+cat("deviance\t= ", deviance(reglog_multinom), "\n")
+cat("logLik\t\t= ", logLik(reglog_multinom), "\n")
+cat("AIC\t\t= ", AIC(reglog_multinom), "\n")
+```
+
+#### McFadden, Cox & Snell and Nagelkerke Pseudo R-squared
+
+Koefisien determinasi sering digunakan pada model logit untuk mengetahui seberapa besar pengaruh peubah penjelas terhadap peubah respon. Koefisien determinasi merupakan kuadrat dari koefisien korelasi sebagai ukuran untuk mengetahui kemampuan dari masing-masing peubah yang digunakan dalam penelitian. Nilai koefisien determinasi yang kecil berarti kemampuan peubah penjelas dalam menjelaskan peubah respon amat terbatas.
+
+McFadden Pseudo R-squared intinya mengukur seberapa jauh kemampuan model dalam menerangkan variasi peubah respon. Nilai koefisien determinasi adalah antara 0 dan 1:
+
+1. McFadden R-squared semakin mendekati nilai 1 maka model telah dianggap semakin baik, atau semakin besar kemampuan model dalam menjelaskan perubahan perubahan dari peubah penjelas terhadap peubah respon.
+
+2. Jika McFadden R-squared semakin mendekati nilai 0 maka berarti semakin kecil kemampuan model dalam menjelaskan perubahan dari nilai variabel independen terhadap peubah respon dan model dianggap kurang baik (Ghozali, 2017).
+
+
+```{r}
+reglog_multinom0 <- vglm(product ~ 1, family=multinomial(refLevel="none"), data=multinom_train)
+LLf   <- logLik(reglog_multinom)
+LL0   <- logLik(reglog_multinom0)
+
+# McFadden pseudo-R2
+cat("McFadden\t= ", as.vector(1 - (LLf / LL0)), "\n")
+
+# Cox & Snell pseudo-R2
+N <- nrow(multinom_train)
+cat("Cox & Snell\t= ", as.vector(1 - exp((2/N) * (LL0 - LLf))), "\n")
+
+# Nagelkerke pseudo-R2
+cat("Nagelkerke\t= ", as.vector((1 - exp((2/N) * (LL0 - LLf))) / (1 - exp(LL0)^(2/N))), "\n")
+```
+
+### Prediksi Model
+
+Hasil prediksi menggunakan data latih
+
+```{r}
+multinom_pred_test <- predict(reglog_multinom, multinom_test, type="response")
+
+# menambah kolom kelas prediksi
+tbl_multinom_pred_test <- data.frame(multinom_pred_test)
+tbl_multinom_pred_test$newclass <- levels(as.factor(multinom_train$product))[max.col(multinom_pred_test)]
+head(tbl_multinom_pred_test)
+```
+
+
+## Regresi Logistik Ordinal
+
+Pada gugus data ini disediakan peubah yang memiliki atribut calon nasabah asuransi. Studi kasus yang akan dilakukan adalah memprediksi peubah *Response* pada masing-masing amatan di data latih. Peubah/kolom *Response* adalah ukuran ordinal (ordo) yang menunjukkan 8 resiko tingkat kesehatan seseorang.
+
+Penjelasan peubah:
+
+* *Product_Info_1-4:*	
+  A set of normalized variables relating to the product applied for
+
+* *BMI:*
+  Normalized BMI of applicant history of the applicant.
+
+* *InsuredInfo_1-5:*
+  A set of normalized variables providing information about the applicant.
+
+* *Insurance_History_1-3:*
+  A set of normalized variables relating to the insurance history of the applicant.
+
+* *Family_Hist:*
+  Variables relating to the family history of the applicant.
+
+* *Medical_History_1-6:*
+  A set of normalized variables relating to the medical history of the applicant.
+
+* *Employment_Info:*
+  Variables relating to the employment
+
+
+```{r}
+ordinal_train <- read.csv(file="https://github.com/alfanugraha/tsa-handson/raw/master/training_ordinal.csv", 
+                header = T, 
+                sep = ",")
+ordinal_test <- read.csv(file="https://github.com/alfanugraha/tsa-handson/raw/master/test_ordinal.csv", 
+                header = T, 
+                sep = ",")
+head(ordinal_train)
+```
+
+### Pemodelan
+
+```{r}
+reglog_ordinal <- vglm(Response ~ BMI + Product_Info_2 + InsuredInfo_3 + Medical_History_1 + Insurance_History_3 + Employment_Info + Family_Hist, family = propodds, data = ordinal_train)
+sum_ord <- summary(reglog_ordinal)
+sum_ord
+```
+
+Uji koefisien dan uji model keseluruhan 
+
+```{r}
+coef(sum_ord)
+```
+
+
+### Kinerja Model
+
+
+
+```{r}
+reglog_ordinal_pred <- predict(reglog_ordinal, type="response")
+head(reglog_ordinal_pred)
+```
+
+```{r}
+# menambahkan kolom kelas aktual
+tbl_ord <- data.frame(reglog_ordinal_pred, ordinal_train$Response)
+head(tbl_ord)
+```
+
+```{r}
+# menambah kolom kelas prediksi
+tbl_ord$prediksi <- as.numeric(levels(as.factor(ordinal_train$Response)))[max.col(reglog_ordinal_pred)]
+head(tbl_ord)
+```
+
+
+#### Confusion matrix
+
+```{r}
+ordinal_prop <- table(tbl_ord$prediksi, tbl_ord$ordinal_train.Response)
+ordinal_prop
+```
+
+```{r}
+round(prop.table(ordinal_prop, 1), 3)
+```
+
+
+```{r}
+mean(tbl_ord$prediksi == ordinal_train$Response)
+```
+#### Deviance, Log-likelihood, AIC
+
+```{r}
+cat("deviance\t= ", deviance(reglog_ordinal), "\n")
+cat("logLik\t\t= ", logLik(reglog_ordinal), "\n")
+cat("AIC\t\t= ", AIC(reglog_ordinal), "\n")
+```
+
+#### McFadden, Cox & Snell and Nagelkerke Pseudo R-squared
+
+```{r}
+reglog_ordinal0 <- vglm(Response ~ 1, family=propodds, data=ordinal_train)
+LLf_ord   <- logLik(reglog_ordinal)
+LL0_ord   <- logLik(reglog_ordinal0)
+
+# McFadden pseudo-R2
+cat("McFadden\t= ", as.vector(1 - (LLf_ord / LL0_ord)), "\n")
+
+# Cox & Snell pseudo-R2
+N_ord <- nrow(ordinal_train)
+cat("Cox & Snell\t= ", as.vector(1 - exp((2/N_ord) * (LL0_ord - LLf_ord))), "\n")
+
+# Nagelkerke pseudo-R2
+cat("Nagelkerke\t= ", as.vector((1 - exp((2/N_ord) * (LL0_ord - LLf_ord))) / (1 - exp(LL0_ord)^(2/N_ord))), "\n")
+```
+
+### Prediksi Model
+
+```{r}
+ordinal_test_filter <- ordinal_test[c("BMI", "Product_Info_2", "InsuredInfo_3", "Medical_History_1", "Insurance_History_3", "Employment_Info", "Family_Hist")]
+ordinal_test_filter
+```
+
+
+```{r}
+pred_ordinal_test <- predict(reglog_ordinal, ordinal_test, type="response")
+```
+
+```{r}
+# menambah kolom kelas prediksi
+tbl_ord_test <- data.frame(pred_ordinal_test)
+tbl_ord_test$newclass <- as.numeric(levels(as.factor(ordinal_train$Response)))[max.col(pred_ordinal_test)]
+head(tbl_ord_test)
+```
+
+
+
+
